@@ -1,5 +1,7 @@
 document.getElementById("optimizeBtn").onclick=function(){
 
+saveState()
+
 let stopW=Number(document.getElementById("stopWeight").value)
 let revW=Number(document.getElementById("revWeight").value)
 let distW=Number(document.getElementById("distWeight").value)
@@ -51,62 +53,5 @@ markers[a.id].setStyle({fillColor:getColor(best)})
 })
 
 updateRepStats()
-
-}
-
-function updateRepStats(){
-
-let reps={}
-
-accounts.forEach(a=>{
-
-if(!reps[a.newRep]){
-reps[a.newRep]={accounts:0,revenue:0,stops:0,A:0,B:0,C:0,D:0}
-}
-
-let r=reps[a.newRep]
-
-r.accounts++
-r.revenue+=a.sales
-r.stops+=rankWeight[a.rank]
-
-r[a.rank]++
-
-})
-
-let html=`<table>
-<tr>
-<th>Rep</th>
-<th>Accounts</th>
-<th>Revenue</th>
-<th>Stops</th>
-<th>A</th>
-<th>B</th>
-<th>C</th>
-<th>D</th>
-</tr>`
-
-Object.keys(reps).forEach(rep=>{
-
-let r=reps[rep]
-
-html+=`
-<tr>
-<td><span class="colorBox" style="background:${getColor(rep)}"></span>${rep}</td>
-<td>${r.accounts}</td>
-<td>$${Math.round(r.revenue)}</td>
-<td>${r.stops.toFixed(1)}</td>
-<td>${r.A}</td>
-<td>${r.B}</td>
-<td>${r.C}</td>
-<td>${r.D}</td>
-</tr>
-`
-
-})
-
-html+="</table>"
-
-document.getElementById("repStats").innerHTML=html
 
 }
