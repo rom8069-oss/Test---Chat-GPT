@@ -1,16 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Territory Optimizer</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+body{
+font-family:Arial;
+margin:0;
+display:flex;
+height:100vh;
+}
+
+#sidebar{
+width:320px;
+background:#f4f4f4;
+padding:10px;
+overflow:auto;
+border-right:1px solid #ccc;
+}
+
+#map{
+flex:1;
+}
+
+button{
+width:100%;
+margin-top:6px;
+padding:8px;
+font-size:14px;
+}
+
+table{
+width:100%;
+font-size:12px;
+border-collapse:collapse;
+margin-top:10px;
+}
+
+td,th{
+border:1px solid #ccc;
+padding:4px;
+text-align:center;
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="sidebar">
+
+<h3>Upload Accounts CSV</h3>
+
+<input type="file" id="csvFile">
+
+<button id="assignBtn" disabled>Assign</button>
+
+<button id="optimizeBtn">Optimize</button>
+
+<button id="exportBtn" disabled>Export CSV</button>
+
+<div id="repStats"></div>
+
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+
+let map=L.map("map").setView([41.85,-87.7],9)
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+maxZoom:19
+}).addTo(map)
+
+let accounts=[]
+let markers=[]
+
+function parseCSV(text){
+
+let rows=text.trim().split("\n").map(r=>r.split(","))
+
+let headers=rows[0]
+
+return rows.slice(1).map(row=>{
+
+let obj={}
+
+headers.forEach((h,i)=>{
+obj[h.trim()]=row[i]
+})
+
+obj.lat=Number(obj.lat)
+obj.lng=Number(obj.lng)
+obj.revenue=Number(obj.revenue||0)
+
+return obj
+})
+
+}
+
+document.getElementById("csvFile").onchange=function(e){
+
+let file=e.target.files[0]
+
+let reader=new FileReader()
+
+reader.onload=function(){
+
+accounts=parseCSV(reader.result)
+
+drawMarkers()
+
+document.getElementById("assignBtn").disabled=false
+document.getElementById("exportBtn").disabled=false
+
+}
+
+reader.readAsText(file)
+
+}
+
+function drawMarkers(){
+
+markers.forEach(m=>map.removeLayer(m))
+markers=[]
+
+accounts.forEach(a=>{
+
+let m=L.circleMarker([a.lat,a.lng],{
+radius:6,
+color:"blue"
+}).addTo(map)
+
+markers.push(m)
+
+})
+
+}
+
+document.getElementById("assignBtn").onclick=function(){
+
+accounts.forEach(a=>{
+a.rep="Rep "+(Math.floor(Math.random()*14)+1)
+})
+
+updateStats()
+
+}
+
 document.getElementById("optimizeBtn").onclick=function(){
 
-let stopW=Number(document.getElementById("stopWeight").value)
-let revW=Number(document.getElementById("revWeight").value)
-let distW=Number(document.getElementById("distWeight").value)
+let reps=[...new Set(accounts.map(a=>a.rep))]
 
-let reps=[...new Set(accounts.map(a=>a.newRep))]
+if(reps.length===0) return
 
 let centers={}
 
 reps.forEach(r=>{
 
-let pts=accounts.filter(a=>a.newRep===r)
+let pts=accounts.filter(a=>a.rep===r)
 
 let lat=pts.reduce((s,a)=>s+a.lat,0)/pts.length
 let lng=pts.reduce((s,a)=>s+a.lng,0)/pts.length
@@ -21,87 +175,53 @@ centers[r]={lat,lng}
 
 accounts.forEach(a=>{
 
-if(a.protected)return
+let best=null
+let bestDist=Infinity
 
-let best=a.newRep
-let bestScore=Infinity
+reps.forEach(r=>{
 
-reps.forEach(rep=>{
-
-let c=centers[rep]
+let c=centers[r]
 
 let dist=Math.hypot(a.lat-c.lat,a.lng-c.lng)
 
-let score=
-dist*distW+
-rankWeight[a.rank]*stopW+
-a.sales*.0001*revW
-
-if(score<bestScore){
-bestScore=score
-best=rep
+if(dist<bestDist){
+best=r
+bestDist=dist
 }
 
 })
 
-a.newRep=best
-
-markers[a.id].setStyle({fillColor:getColor(best)})
+a.rep=best
 
 })
 
-updateRepStats()
+updateStats()
 
 }
 
-function updateRepStats(){
+function updateStats(){
 
 let reps={}
 
 accounts.forEach(a=>{
 
-if(!reps[a.newRep]){
-reps[a.newRep]={accounts:0,revenue:0,stops:0,A:0,B:0,C:0,D:0}
-}
+if(!reps[a.rep]) reps[a.rep]={accounts:0,revenue:0}
 
-let r=reps[a.newRep]
-
-r.accounts++
-r.revenue+=a.sales
-r.stops+=rankWeight[a.rank]
-
-r[a.rank]++
+reps[a.rep].accounts++
+reps[a.rep].revenue+=a.revenue
 
 })
 
-let html=`<table>
-<tr>
-<th>Rep</th>
-<th>Accounts</th>
-<th>Revenue</th>
-<th>Stops</th>
-<th>A</th>
-<th>B</th>
-<th>C</th>
-<th>D</th>
+let html="<table>"
+html+="<tr><th>Rep</th><th>Accounts</th><th>Revenue</th></tr>"
+
+Object.keys(reps).forEach(r=>{
+
+html+=`<tr>
+<td>${r}</td>
+<td>${reps[r].accounts}</td>
+<td>$${Math.round(reps[r].revenue)}</td>
 </tr>`
-
-Object.keys(reps).forEach(rep=>{
-
-let r=reps[rep]
-
-html+=`
-<tr>
-<td><span class="colorBox" style="background:${getColor(rep)}"></span>${rep}</td>
-<td>${r.accounts}</td>
-<td>$${Math.round(r.revenue)}</td>
-<td>${r.stops.toFixed(1)}</td>
-<td>${r.A}</td>
-<td>${r.B}</td>
-<td>${r.C}</td>
-<td>${r.D}</td>
-</tr>
-`
 
 })
 
@@ -110,3 +230,29 @@ html+="</table>"
 document.getElementById("repStats").innerHTML=html
 
 }
+
+document.getElementById("exportBtn").onclick=function(){
+
+let headers=Object.keys(accounts[0])
+
+let rows=[headers.join(",")]
+
+accounts.forEach(a=>{
+rows.push(headers.map(h=>a[h]).join(","))
+})
+
+let blob=new Blob([rows.join("\n")],{type:"text/csv"})
+
+let link=document.createElement("a")
+
+link.href=URL.createObjectURL(blob)
+link.download="optimized_routes.csv"
+
+link.click()
+
+}
+
+</script>
+
+</body>
+</html>
