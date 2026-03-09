@@ -1,9 +1,8 @@
 document.getElementById("optimizeBtn").onclick=function(){
 
-let stopWeight=Number(document.getElementById("stopWeight").value)
-let revWeight=Number(document.getElementById("revWeight").value)
-let distWeight=Number(document.getElementById("distWeight").value)
-let disruption=Number(document.getElementById("disruption").value)
+let stopW=Number(document.getElementById("stopWeight").value)
+let revW=Number(document.getElementById("revWeight").value)
+let distW=Number(document.getElementById("distWeight").value)
 
 let reps=[...new Set(accounts.map(a=>a.newRep))]
 
@@ -22,9 +21,9 @@ centers[r]={lat,lng}
 
 accounts.forEach(a=>{
 
-if(a.protected) return
+if(a.protected)return
 
-let bestRep=a.newRep
+let best=a.newRep
 let bestScore=Infinity
 
 reps.forEach(rep=>{
@@ -33,32 +32,81 @@ let c=centers[rep]
 
 let dist=Math.hypot(a.lat-c.lat,a.lng-c.lng)
 
-let stopScore=rankWeights[a.rank]
-let revenueScore=a.sales
-
-let disruptionPenalty=(rep!==a.currentRep)?disruption:0
-
 let score=
-dist*distWeight+
-stopScore*stopWeight+
-revenueScore*.0001*revWeight+
-disruptionPenalty
+dist*distW+
+rankWeight[a.rank]*stopW+
+a.sales*.0001*revW
 
 if(score<bestScore){
 bestScore=score
-bestRep=rep
+best=rep
 }
 
 })
 
-a.newRep=bestRep
+a.newRep=best
 
-markers[a.id].setStyle({
-fillColor:getRepColor(bestRep)
-})
+markers[a.id].setStyle({fillColor:getColor(best)})
 
 })
 
 updateRepStats()
+
+}
+
+function updateRepStats(){
+
+let reps={}
+
+accounts.forEach(a=>{
+
+if(!reps[a.newRep]){
+reps[a.newRep]={accounts:0,revenue:0,stops:0,A:0,B:0,C:0,D:0}
+}
+
+let r=reps[a.newRep]
+
+r.accounts++
+r.revenue+=a.sales
+r.stops+=rankWeight[a.rank]
+
+r[a.rank]++
+
+})
+
+let html=`<table>
+<tr>
+<th>Rep</th>
+<th>Accounts</th>
+<th>Revenue</th>
+<th>Stops</th>
+<th>A</th>
+<th>B</th>
+<th>C</th>
+<th>D</th>
+</tr>`
+
+Object.keys(reps).forEach(rep=>{
+
+let r=reps[rep]
+
+html+=`
+<tr>
+<td><span class="colorBox" style="background:${getColor(rep)}"></span>${rep}</td>
+<td>${r.accounts}</td>
+<td>$${Math.round(r.revenue)}</td>
+<td>${r.stops.toFixed(1)}</td>
+<td>${r.A}</td>
+<td>${r.B}</td>
+<td>${r.C}</td>
+<td>${r.D}</td>
+</tr>
+`
+
+})
+
+html+="</table>"
+
+document.getElementById("repStats").innerHTML=html
 
 }
