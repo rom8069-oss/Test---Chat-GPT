@@ -1,6 +1,6 @@
 body{
 margin:0;
-font-family:Arial;
+font-family:"Tw Cen MT",sans-serif;
 }
 
 #toolbar{
@@ -11,6 +11,7 @@ padding:8px;
 display:flex;
 align-items:center;
 gap:6px;
+font-family:"Tw Cen MT",sans-serif;
 }
 
 #container{
@@ -27,11 +28,13 @@ flex:1;
 background:#f4f4f4;
 padding:10px;
 overflow:auto;
+font-family:"Tw Cen MT",sans-serif;
 }
 
 table{
 width:100%;
 border-collapse:collapse;
+font-size:12px;
 }
 
 td,th{
