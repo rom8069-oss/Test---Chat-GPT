@@ -1,143 +1,215 @@
-let map, markersById={}, accounts=[], selected=[], heatLayer, darkMode=true, history=[], lassoActive=false, lassoPoints=[], lassoLayer, territoryLayer;
+let map
+let accounts=[]
+let markers={}
+let originalAssignments={}
+let heatLayer=null
+let darkMode=true
+let selected=[]
 
-const rankWeights={A:1,B:0.5,C:0.25,D:0.083};
-const repColors=["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"];
+const rankWeights={A:1,B:.5,C:.25,D:.083}
+
+const repColors=[
+"#1f77b4","#ff7f0e","#2ca02c","#d62728",
+"#9467bd","#8c564b","#e377c2","#7f7f7f",
+"#bcbd22","#17becf","#f781bf","#999999"
+]
 
 function initMap(){
-  map=L.map('map',{preferCanvas:true}).setView([41.85,-87.7],10);
-  window.darkTiles=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-  window.lightTiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
-}
-initMap();
 
-// Map style toggle
-document.getElementById("mapStyleToggle").onclick=()=>{
-  if(darkMode){ map.removeLayer(darkTiles); map.addLayer(lightTiles);}
-  else{ map.removeLayer(lightTiles); map.addLayer(darkTiles);}
-  darkMode=!darkMode;
-};
+map=L.map('map',{preferCanvas:true}).setView([41.85,-87.7],10)
 
-// Excel import
-document.getElementById("fileInput").addEventListener("change",handleFile);
-function handleFile(e){
-  const reader=new FileReader();
-  reader.onload=function(evt){
-    const data=new Uint8Array(evt.target.result);
-    const workbook=XLSX.read(data,{type:'array'});
-    const sheet=workbook.Sheets[workbook.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(sheet);
-    loadAccounts(rows);
-  };
-  reader.readAsArrayBuffer(e.target.files[0]);
+window.darkTiles=L.tileLayer(
+'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+).addTo(map)
+
+window.lightTiles=L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+)
+
 }
+
+initMap()
+
+function getRepColor(rep){
+let index=Math.abs(hashCode(rep))%repColors.length
+return repColors[index]
+}
+
+function hashCode(str){
+let h=0
+for(let i=0;i<str.length;i++){
+h=((h<<5)-h)+str.charCodeAt(i)
+}
+return h
+}
+
+document.getElementById("fileInput").addEventListener("change",e=>{
+
+const reader=new FileReader()
+
+reader.onload=function(evt){
+
+const data=new Uint8Array(evt.target.result)
+const workbook=XLSX.read(data,{type:'array'})
+const sheet=workbook.Sheets[workbook.SheetNames[0]]
+
+const rows=XLSX.utils.sheet_to_json(sheet)
+
+loadAccounts(rows)
+
+}
+
+reader.readAsArrayBuffer(e.target.files[0])
+
+})
 
 function loadAccounts(rows){
-  accounts=[]; if(territoryLayer){map.removeLayer(territoryLayer);}
-  rows.forEach((r,i)=>{
-    let newRep=r["New Rep"] || r["Current Rep"];
-    let acct={
-      id:i,
-      name:r["Customer Name"],
-      lat:parseFloat(r["Latitude"]),
-      lng:parseFloat(r["Longitude"]),
-      sales:r["Sales"],
-      rank:r["Rank"],
-      currentRep:r["Current Rep"],
-      newRep:newRep,
-      wine:r["Wine"], spirits:r["Spirits"], thc:r["THC"],
-      protected:r["Protected"]==="TRUE"
-    };
-    accounts.push(acct);
-    createMarker(acct);
-  });
-  updateRepStats();
-  drawTerritories();
+
+accounts=[]
+markers={}
+originalAssignments={}
+
+rows.forEach((r,i)=>{
+
+let sales=Number(r["Sales"]||r["$ Sales"]||0)
+
+let acct={
+id:i,
+name:r["Customer Name"]||r["Account"]||"Unknown",
+lat:Number(r["Latitude"]),
+lng:Number(r["Longitude"]),
+sales:sales,
+rank:r["Rank"]||"C",
+currentRep:r["Current Rep"],
+newRep:r["New Rep"]||r["Current Rep"],
+protected:r["Protected"]==="TRUE"
 }
 
-function createMarker(acct){
-  let marker=L.circleMarker([acct.lat,acct.lng],{radius:3, fillColor:getRepColor(acct.newRep), fillOpacity:0.9, stroke:false}).addTo(map);
-  marker.bindTooltip(()=>`${acct.name}<br>Sales: $${acct.sales}<br>Current Rep: ${acct.currentRep}<br>New Rep: ${acct.newRep}`);
-  marker.on("click",()=>showAccount(acct));
-  markersById[acct.id]=marker;
+accounts.push(acct)
+
+originalAssignments[i]=acct.currentRep
+
+createMarker(acct)
+
+})
+
+updateRepStats()
+
+}
+
+function createMarker(a){
+
+let marker=L.circleMarker(
+[a.lat,a.lng],
+{
+radius:3,
+fillColor:getRepColor(a.newRep),
+fillOpacity:.9,
+stroke:false
+}).addTo(map)
+
+marker.bindTooltip(
+`${a.name}<br>
+Sales: $${a.sales}<br>
+Current Rep: ${a.currentRep}<br>
+New Rep: ${a.newRep}`
+)
+
+marker.on("click",()=>showAccount(a))
+
+markers[a.id]=marker
+
 }
 
 function showAccount(a){
-  document.getElementById("accountDetail").innerHTML=`
-<b>${a.name}</b><br>
-Sales: $${a.sales}<br>Rank: ${a.rank}<br>Protected: ${a.protected}<br><br>
-Current Rep: ${a.currentRep}<br>New Rep: ${a.newRep}`;
+
+document.getElementById("accountDetail").innerHTML=
+`<b>${a.name}</b><br>
+Sales: $${a.sales}<br>
+Rank: ${a.rank}<br>
+Current Rep: ${a.currentRep}<br>
+New Rep: ${a.newRep}`
+
 }
 
-function getRepColor(rep){let index=Math.abs(hashCode(rep))%repColors.length; return repColors[index];}
-function hashCode(str){let h=0; for(let i=0;i<str.length;i++) h=((h<<5)-h)+str.charCodeAt(i); return h;}
-
-// Rep stats
 function updateRepStats(){
-  let reps={}; let movedCount=0; let totalRevenue=0; let totalStops=0;
-  accounts.forEach(a=>{
-    if(!reps[a.newRep]) reps[a.newRep]={accounts:0,stops:0,revenue:0};
-    reps[a.newRep].accounts++; reps[a.newRep].revenue+=a.sales; reps[a.newRep].stops+=rankWeights[a.rank]||0;
-    if(a.currentRep!==a.newRep) movedCount++;
-    totalRevenue+=a.sales; totalStops+=rankWeights[a.rank]||0;
-  });
-  let html="";
-  Object.keys(reps).forEach(r=>{
-    let d=reps[r];
-    html+=`<div class="repCard"><b>${r}</b><br>Accounts: ${d.accounts}<br>Weekly Stops: ${d.stops.toFixed(1)}<br>Revenue: $${Math.round(d.revenue)}</div>`;
-  });
-  document.getElementById("repStats").innerHTML=html;
-  document.getElementById("movedCount").innerText=movedCount;
-  document.getElementById("totalRevenue").innerText=Math.round(totalRevenue);
-  document.getElementById("totalStops").innerText=Math.round(totalStops);
+
+let reps={}
+let moved=0
+let revenue=0
+let stops=0
+
+accounts.forEach(a=>{
+
+if(!reps[a.newRep]){
+reps[a.newRep]={accounts:0,revenue:0,stops:0}
 }
 
-// Heatmap toggle
+reps[a.newRep].accounts++
+reps[a.newRep].revenue+=a.sales
+reps[a.newRep].stops+=rankWeights[a.rank]
+
+revenue+=a.sales
+stops+=rankWeights[a.rank]
+
+if(a.currentRep!==a.newRep) moved++
+
+})
+
+let html=""
+
+Object.keys(reps).forEach(rep=>{
+
+let r=reps[rep]
+
+html+=`
+<div class="repCard" style="border-left-color:${getRepColor(rep)}">
+<span class="colorBox" style="background:${getRepColor(rep)}"></span>
+<b>${rep}</b><br>
+Accounts: ${r.accounts}<br>
+Revenue: $${Math.round(r.revenue)}<br>
+Stops: ${r.stops.toFixed(1)}
+</div>
+`
+
+})
+
+document.getElementById("repStats").innerHTML=html
+
+document.getElementById("movedCount").innerText=moved
+document.getElementById("totalRevenue").innerText=Math.round(revenue)
+document.getElementById("totalStops").innerText=Math.round(stops)
+
+}
+
 document.getElementById("heatToggle").onclick=()=>{
-  if(heatLayer){ map.removeLayer(heatLayer); heatLayer=null; return;}
-  let pts=accounts.map(a=>[a.lat,a.lng,a.sales]);
-  heatLayer=L.heatLayer(pts,{radius:25}).addTo(map);
-};
 
-// Export Excel
-document.getElementById("exportBtn").onclick=()=>{
-  let rows=accounts.map(a=>({"Customer Name":a.name,"Current Rep":a.currentRep,"New Rep":a.newRep,"Sales":a.sales,"Rank":a.rank}));
-  const ws=XLSX.utils.json_to_sheet(rows);
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,"Export");
-  XLSX.writeFile(wb,"territory_export.xlsx");
-};
+if(!accounts.length)return
 
-// Lasso
-document.getElementById("lassoBtn").onclick=()=>{
-  lassoActive=!lassoActive; lassoPoints=[]; if(lassoLayer) map.removeLayer(lassoLayer);
-};
-map.on("click",e=>{
-  if(!lassoActive) return;
-  lassoPoints.push([e.latlng.lng,e.latlng.lat]);
-  if(lassoLayer) map.removeLayer(lassoLayer);
-  lassoLayer=L.polygon(lassoPoints.map(p=>[p[1],p[0]])).addTo(map);
-});
-function finalizeLasso(){
-  selected=[]; const poly=turf.polygon([[...lassoPoints,lassoPoints[0]]]);
-  accounts.forEach(a=>{
-    const pt=turf.point([a.lng,a.lat]);
-    if(turf.booleanPointInPolygon(pt,poly)){
-      selected.push(a); markersById[a.id].setStyle({color:"white",weight:2});
-    }
-  });
+if(heatLayer){
+map.removeLayer(heatLayer)
+heatLayer=null
+return
 }
 
-// Territories
-function drawTerritories(){
-  if(window.territoryLayer) map.removeLayer(window.territoryLayer);
-  window.territoryLayer=L.layerGroup().addTo(map);
-  let reps=getAllReps();
-  reps.forEach(rep=>{
-    let pts=accounts.filter(a=>a.newRep===rep).map(a=>turf.point([a.lng,a.lat]));
-    if(pts.length<3) return;
-    let fc=turf.featureCollection(pts);
-    let hull=turf.concave(fc,{maxEdge:5}); if(!hull) return;
-    let layer=L.geoJSON(hull,{style:{color:getRepColor(rep),weight:2,fillOpacity:0.1}});
-    territoryLayer.addLayer(layer);
-  });
+let pts=accounts.map(a=>[a.lat,a.lng,a.sales])
+
+heatLayer=L.heatLayer(pts,{radius:25}).addTo(map)
+
+}
+
+document.getElementById("resetBtn").onclick=()=>{
+
+accounts.forEach(a=>{
+
+a.newRep=originalAssignments[a.id]
+
+markers[a.id].setStyle({
+fillColor:getRepColor(a.newRep)
+})
+
+})
+
+updateRepStats()
+
 }
