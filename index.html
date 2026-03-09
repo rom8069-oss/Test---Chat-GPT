@@ -5,6 +5,7 @@
 <title>Territory Planner Pro</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
@@ -16,50 +17,50 @@
 <body>
 
 <div id="toolbar">
+
 <input type="file" id="fileInput">
 
 <button id="lassoBtn">Lasso</button>
 <button id="assignBtn">Assign</button>
 <button id="optimizeBtn">Optimize</button>
-
-<button id="undoBtn">Undo</button>
+<button id="resetBtn">Reset</button>
 <button id="exportBtn">Export</button>
 
-<label>Stops</label>
-<input id="stopWeight" type="number" value="60">
-<label>Revenue</label>
-<input id="revWeight" type="number" value="30">
-<label>Distance</label>
-<input id="distWeight" type="number" value="10">
+Stops <input id="stopWeight" type="number" value="60">
+Revenue <input id="revWeight" type="number" value="20">
+Distance <input id="distWeight" type="number" value="20">
 
-<label>Disruption</label>
-<input id="disruption" type="range" min="0" max="100" value="70">
+Disruption <input id="disruption" type="range" min="0" max="100" value="70">
 
 <button id="heatToggle">Heatmap</button>
 <button id="mapStyleToggle">Dark/Light</button>
 
 <span id="statusIndicators">
-Moved: <span id="movedCount">0</span> | Revenue: $<span id="totalRevenue">0</span> | Stops: <span id="totalStops">0</span>
+Moved: <span id="movedCount">0</span> |
+Revenue: $<span id="totalRevenue">0</span> |
+Stops: <span id="totalStops">0</span>
 </span>
+
 </div>
 
 <div id="container">
+
 <div id="map"></div>
 
 <div id="sidePanel">
-<div class="panelSection">
+
 <h3>Account Detail</h3>
 <div id="accountDetail"></div>
-</div>
 
-<div class="panelSection">
 <h3>Rep Dashboard</h3>
 <div id="repStats"></div>
+
 </div>
-</div>
+
 </div>
 
 <script src="optimizer.js"></script>
 <script src="app.js"></script>
+
 </body>
 </html>
