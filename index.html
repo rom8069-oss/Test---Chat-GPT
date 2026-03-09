@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8"/>
-<title>Territory Planner Pro</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<meta charset="utf-8">
+<title>Territory Planner</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
-<link rel="stylesheet" href="style.css"/>
+<link rel="stylesheet" href="style.css">
+
 </head>
 
 <body>
@@ -21,7 +23,10 @@
 <input type="file" id="fileInput">
 
 <button id="lassoBtn">Lasso</button>
+
+<select id="repSelect"></select>
 <button id="assignBtn">Assign</button>
+
 <button id="optimizeBtn">Optimize</button>
 <button id="resetBtn">Reset</button>
 <button id="exportBtn">Export</button>
@@ -30,16 +35,8 @@ Stops <input id="stopWeight" type="number" value="60">
 Revenue <input id="revWeight" type="number" value="20">
 Distance <input id="distWeight" type="number" value="20">
 
-Disruption <input id="disruption" type="range" min="0" max="100" value="70">
-
 <button id="heatToggle">Heatmap</button>
 <button id="mapStyleToggle">Dark/Light</button>
-
-<span id="statusIndicators">
-Moved: <span id="movedCount">0</span> |
-Revenue: $<span id="totalRevenue">0</span> |
-Stops: <span id="totalStops">0</span>
-</span>
 
 </div>
 
@@ -59,8 +56,8 @@ Stops: <span id="totalStops">0</span>
 
 </div>
 
-<script src="optimizer.js"></script>
 <script src="app.js"></script>
+<script src="optimizer.js"></script>
 
 </body>
 </html>
