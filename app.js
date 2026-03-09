@@ -9,6 +9,8 @@ let lassoActive=false
 let lassoPoints=[]
 let lassoLayer=null
 
+let history=[]
+
 const rankWeight={A:1,B:.5,C:.25,D:.083}
 
 const colors=[
@@ -73,6 +75,25 @@ reader.readAsArrayBuffer(e.target.files[0])
 
 })
 
+function saveState(){
+history.push(JSON.stringify(accounts.map(a=>a.newRep)))
+}
+
+document.getElementById("undoBtn").onclick=function(){
+
+if(history.length===0)return
+
+let prev=JSON.parse(history.pop())
+
+accounts.forEach((a,i)=>{
+a.newRep=prev[i]
+markers[a.id].setStyle({fillColor:getColor(a.newRep)})
+})
+
+updateRepStats()
+
+}
+
 function loadAccounts(rows){
 
 accounts=[]
@@ -99,7 +120,6 @@ createMarker(acct)
 })
 
 buildRepDropdown()
-
 updateRepStats()
 
 }
@@ -153,6 +173,8 @@ sel.appendChild(opt)
 }
 
 document.getElementById("assignBtn").onclick=function(){
+
+saveState()
 
 let rep=document.getElementById("repSelect").value
 
