@@ -1,63 +1,112 @@
-<!DOCTYPE html>
-<html>
-<head>
+document.getElementById("optimizeBtn").onclick=function(){
 
-<meta charset="utf-8">
-<title>Territory Planner</title>
+let stopW=Number(document.getElementById("stopWeight").value)
+let revW=Number(document.getElementById("revWeight").value)
+let distW=Number(document.getElementById("distWeight").value)
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+let reps=[...new Set(accounts.map(a=>a.newRep))]
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet-heat@0.2.0/dist/leaflet-heat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+let centers={}
 
-<link rel="stylesheet" href="style.css">
+reps.forEach(r=>{
 
-</head>
+let pts=accounts.filter(a=>a.newRep===r)
 
-<body>
+let lat=pts.reduce((s,a)=>s+a.lat,0)/pts.length
+let lng=pts.reduce((s,a)=>s+a.lng,0)/pts.length
 
-<div id="toolbar">
+centers[r]={lat,lng}
 
-<input type="file" id="fileInput">
+})
 
-<button id="lassoBtn">Lasso</button>
+accounts.forEach(a=>{
 
-<select id="repSelect"></select>
-<button id="assignBtn">Assign</button>
+if(a.protected)return
 
-<button id="optimizeBtn">Optimize</button>
-<button id="resetBtn">Reset</button>
-<button id="exportBtn">Export</button>
+let best=a.newRep
+let bestScore=Infinity
 
-Stops <input id="stopWeight" type="number" value="60">
-Revenue <input id="revWeight" type="number" value="20">
-Distance <input id="distWeight" type="number" value="20">
+reps.forEach(rep=>{
 
-<button id="heatToggle">Heatmap</button>
-<button id="mapStyleToggle">Dark/Light</button>
+let c=centers[rep]
 
-</div>
+let dist=Math.hypot(a.lat-c.lat,a.lng-c.lng)
 
-<div id="container">
+let score=
+dist*distW+
+rankWeight[a.rank]*stopW+
+a.sales*.0001*revW
 
-<div id="map"></div>
+if(score<bestScore){
+bestScore=score
+best=rep
+}
 
-<div id="sidePanel">
+})
 
-<h3>Account Detail</h3>
-<div id="accountDetail"></div>
+a.newRep=best
 
-<h3>Rep Dashboard</h3>
-<div id="repStats"></div>
+markers[a.id].setStyle({fillColor:getColor(best)})
 
-</div>
+})
 
-</div>
+updateRepStats()
 
-<script src="app.js"></script>
-<script src="optimizer.js"></script>
+}
 
-</body>
-</html>
+function updateRepStats(){
+
+let reps={}
+
+accounts.forEach(a=>{
+
+if(!reps[a.newRep]){
+reps[a.newRep]={accounts:0,revenue:0,stops:0,A:0,B:0,C:0,D:0}
+}
+
+let r=reps[a.newRep]
+
+r.accounts++
+r.revenue+=a.sales
+r.stops+=rankWeight[a.rank]
+
+r[a.rank]++
+
+})
+
+let html=`<table>
+<tr>
+<th>Rep</th>
+<th>Accounts</th>
+<th>Revenue</th>
+<th>Stops</th>
+<th>A</th>
+<th>B</th>
+<th>C</th>
+<th>D</th>
+</tr>`
+
+Object.keys(reps).forEach(rep=>{
+
+let r=reps[rep]
+
+html+=`
+<tr>
+<td><span class="colorBox" style="background:${getColor(rep)}"></span>${rep}</td>
+<td>${r.accounts}</td>
+<td>$${Math.round(r.revenue)}</td>
+<td>${r.stops.toFixed(1)}</td>
+<td>${r.A}</td>
+<td>${r.B}</td>
+<td>${r.C}</td>
+<td>${r.D}</td>
+</tr>
+`
+
+})
+
+html+="</table>"
+
+document.getElementById("repStats").innerHTML=html
+
+}
